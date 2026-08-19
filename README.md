@@ -6,6 +6,9 @@ every backend Lemonade manages (CPU, Vulkan, ROCm, NPU, Hybrid) and produces a
 single comparable report, a shareable JSON file, and an optional entry on a local
 cross-machine leaderboard.
 
+This is real output from `python -m bench.cli --model-name "Llama-3.2-1B-Instruct"`
+on an AMD Ryzen AI 9 HX 470 (Radeon 890M / XDNA2):
+
 ```
 ╔══════════════════════════════════════════════════╗
 ║          RYZEN AI LOCAL AI REPORT                 ║
@@ -16,10 +19,11 @@ cross-machine leaderboard.
 ║                                                    ║
 ║ Llama-3.2-1B-Instruct                             ║
 ║ ────────────────────────────────────────────────── ║
-║ Vulkan       89.2 tok/s   ★★★★★                   ║
-║ Hybrid       41.6 tok/s   ★★★☆☆                   ║
-║ NPU          38.1 tok/s   ★★★☆☆                   ║
-║ CPU          22.4 tok/s   ★★☆☆☆                   ║
+║ ROCm         77.0 tok/s   ★★★★☆                   ║
+║ Vulkan       85.7 tok/s   ★★★★★                   ║
+║ Hybrid       52.4 tok/s   ★★★☆☆                   ║
+║ NPU          41.1 tok/s   ★★☆☆☆                   ║
+║ CPU          76.6 tok/s   ★★★★☆                   ║
 ╚══════════════════════════════════════════════════╝
 ```
 
@@ -81,7 +85,9 @@ tested; run `lemonade list` to see the full catalog.
 
 ## Running a benchmark
 
-Make sure Lemonade Server is running, then:
+Make sure Lemonade Server is running (launch it from the Start menu, or run
+`LemonadeServer.exe` / `lemonade-app.exe` directly — `lemonade status` confirms
+it's up and tells you which port), then:
 
 ```
 python -m bench.cli
@@ -93,6 +99,7 @@ Options:
 --backends npu hybrid vulkan       # restrict to specific report-facing backends
 --model-name "Llama-3.2-1B-Instruct"
 --runs 3 --warmup 1 --timeout 300
+--no-auto-pull                     # fail instead of downloading missing models
 --upload --label "my-run"          # also push the report to the local leaderboard
 ```
 
@@ -133,10 +140,12 @@ bench/
   config.py          lemonade.exe path + host/port
   hardware.py         reads /api/v1/system-info for CPU/GPU/NPU/RAM
   models.py            model registry: display name -> per-backend Lemonade catalog models
-  report.py            ASCII + JSON report rendering, grouped by workload
-  cli.py                orchestrates everything, optional --upload
+  workloads.py          workload -> label + unit (tok/s, img/min) shared by report.py and the runner
+  report.py             ASCII + JSON report rendering, grouped by workload
+  cli.py                 orchestrates everything, optional --upload
   runners/
-    lemonade.py           wraps `lemonade bench --json`
+    base.py                BenchResult, the shared result type
+    lemonade.py             wraps `lemonade bench --json`
 api/
   server.py             FastAPI leaderboard app
   db.py                  SQLite storage

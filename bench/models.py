@@ -53,6 +53,16 @@ def default_registry() -> list[ModelSpec]:
             ],
         ),
         ModelSpec(
+            name="Qwen3.5-0.8B",
+            workload="llm",
+            sources=[
+                BackendSource("cpu", "Qwen3.5-0.8B-GGUF"),
+                BackendSource("vulkan", "Qwen3.5-0.8B-GGUF"),
+                BackendSource("rocm", "Qwen3.5-0.8B-GGUF"),
+                BackendSource("npu", "qwen3.5-0.8b-FLM", lemonade_backend="npu"),
+            ],
+        ),
+        ModelSpec(
             name="nomic-embed-text-v1",
             workload="embedding",
             sources=[
@@ -71,7 +81,9 @@ def default_registry() -> list[ModelSpec]:
             name="SD-Turbo",
             workload="image_gen",
             sources=[
+                BackendSource("cpu", "SD-Turbo-GGUF"),
                 BackendSource("vulkan", "SD-Turbo-GGUF"),
+                BackendSource("rocm", "SD-Turbo-GGUF"),
             ],
         ),
     ]

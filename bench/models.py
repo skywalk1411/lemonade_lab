@@ -40,6 +40,7 @@ def default_registry() -> list[ModelSpec]:
             sources=[
                 BackendSource("cpu", "Llama-3.2-1B-Instruct-GGUF"),
                 BackendSource("vulkan", "Llama-3.2-1B-Instruct-GGUF"),
+                BackendSource("rocm", "Llama-3.2-1B-Instruct-GGUF"),
                 BackendSource("npu", "Llama-3.2-1B-Instruct-NPU", lemonade_backend="npu"),
                 BackendSource("hybrid", "Llama-3.2-1B-Instruct-Hybrid", lemonade_backend="npu"),
             ],

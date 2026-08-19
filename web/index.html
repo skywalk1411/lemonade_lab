@@ -46,7 +46,8 @@ const BACKEND_ORDER = ["rocm", "vulkan", "hybrid", "npu", "cpu"];
 const dropzone = document.getElementById("dropzone");
 const fileInput = document.getElementById("fileInput");
 
-dropzone.addEventListener("click", () => fileInput.click());
+// Clicking a <label> that wraps its <input> already opens the file picker
+// natively (no JS needed) — only drag-and-drop needs an explicit handler.
 fileInput.addEventListener("change", (e) => {
   if (e.target.files[0]) loadFile(e.target.files[0]);
 });

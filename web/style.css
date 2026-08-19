@@ -71,6 +71,7 @@ header.top nav a:hover { color: var(--text-primary); background: var(--surface-1
 header.top nav a.active { color: var(--text-primary); border-color: var(--border); background: var(--surface-1); }
 
 .dropzone {
+  display: block;
   border: 1px dashed var(--baseline);
   border-radius: 12px;
   padding: 28px;

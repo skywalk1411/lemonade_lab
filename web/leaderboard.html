@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lemonade Lab — Leaderboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1><a href="index.html">Lemonade Lab</a></h1>
+      <div class="tagline">Cross-machine AMD Ryzen AI performance leaderboard</div>
+    </div>
+    <nav>
+      <a href="index.html">Report Viewer</a>
+      <a href="leaderboard.html" class="active">Leaderboard</a>
+    </nav>
+  </header>
+
+  <div class="filter-row">
+    <select id="workloadSelect"></select>
+    <select id="modelSelect"></select>
+    <span class="count" id="countLabel"></span>
+  </div>
+
+  <div id="content"></div>
+
+  <details style="margin-top:32px;">
+    <summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">All submitted reports</summary>
+    <div class="reports-table-wrap" style="margin-top:12px;">
+      <table class="data-table show" id="reportsTable">
+        <thead><tr><th>#</th><th>Uploaded</th><th>Label</th><th>CPU</th><th>GPU</th><th>NPU</th><th>Memory</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </details>
+
+  <footer>Lemonade Lab · running locally at this browser's origin</footer>
+</div>
+
+<script>
+const BACKEND_META = {
+  rocm:   { label: "ROCm",   color: "var(--series-rocm)" },
+  vulkan: { label: "Vulkan", color: "var(--series-vulkan)" },
+  hybrid: { label: "Hybrid", color: "var(--series-hybrid)" },
+  npu:    { label: "NPU",    color: "var(--series-npu)" },
+  cpu:    { label: "CPU",    color: "var(--series-cpu)" },
+};
+const WORKLOAD_LABELS = {
+  llm: "LLM Generation",
+  embedding: "Embedding Throughput",
+  image_gen: "Image Generation",
+};
+
+const workloadSelect = document.getElementById("workloadSelect");
+const modelSelect = document.getElementById("modelSelect");
+const content = document.getElementById("content");
+const countLabel = document.getElementById("countLabel");
+
+let catalog = {};
+
+async function api(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`${path} -> ${res.status}`);
+  return res.json();
+}
+
+function emptyState() {
+  content.innerHTML = `
+    <div class="empty-state">
+      No benchmark reports have been submitted to this leaderboard yet.<br>
+      Run <code>python -m bench.cli --upload</code> to add one.
+    </div>`;
+}
+
+function populateModelOptions() {
+  const workload = workloadSelect.value;
+  const models = catalog[workload] || [];
+  modelSelect.innerHTML = `<option value="">All models</option>` +
+    models.map(m => `<option value="${m}">${m}</option>`).join("");
+}
+
+async function loadCatalog() {
+  catalog = await api("/api/catalog");
+  const workloads = Object.keys(catalog);
+  if (workloads.length === 0) {
+    emptyState();
+    workloadSelect.style.display = "none";
+    modelSelect.style.display = "none";
+    return;
+  }
+  workloadSelect.innerHTML = workloads.map(w =>
+    `<option value="${w}">${WORKLOAD_LABELS[w] || w}</option>`
+  ).join("");
+  populateModelOptions();
+  await loadLeaderboard();
+}
+
+function fmtValue(v, unit) {
+  return v.toFixed(1) + " " + (unit || "tok/s");
+}
+
+async function loadLeaderboard() {
+  const workload = workloadSelect.value;
+  const model = modelSelect.value;
+  const qs = new URLSearchParams({ workload });
+  if (model) qs.set("model", model);
+  const rows = await api("/api/leaderboard?" + qs.toString());
+
+  countLabel.textContent = rows.length === 1 ? "1 result" : `${rows.length} results`;
+
+  if (rows.length === 0) {
+    content.innerHTML = `<div class="empty-state">No results for this filter yet.</div>`;
+    return;
+  }
+
+  const maxValue = Math.max(...rows.map(r => r.value));
+  const card = document.createElement("div");
+  card.className = "model-card";
+
+  const legendBackends = [...new Set(rows.map(r => r.backend))];
+  const legend = legendBackends.map(b =>
+    `<div class="legend-item"><span class="legend-swatch" style="background:${BACKEND_META[b]?.color || '#888'}"></span>${BACKEND_META[b]?.label || b}</div>`
+  ).join("");
+
+  const rankRows = rows.map((r, i) => {
+    const meta = BACKEND_META[r.backend] || { label: r.backend, color: "#888" };
+    const pct = Math.max(3, (r.value / maxValue) * 100);
+    return `
+      <div class="rank-row">
+        <div class="rank">${i + 1}</div>
+        <div class="who">
+          <div class="machine"><span class="swatch" style="background:${meta.color}"></span>${r.cpu || "Unknown CPU"} — ${meta.label}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:${meta.color}"></div></div>
+        </div>
+        <div class="value">${fmtValue(r.value, r.unit)}</div>
+      </div>`;
+  }).join("");
+
+  card.innerHTML = `
+    <h2>${WORKLOAD_LABELS[workload] || workload}${model ? " — " + model : ""}</h2>
+    <div class="legend">${legend}</div>
+    ${rankRows}
+  `;
+  content.innerHTML = "";
+  content.appendChild(card);
+}
+
+async function loadReportsTable() {
+  const reports = await api("/api/reports");
+  const tbody = document.querySelector("#reportsTable tbody");
+  tbody.innerHTML = reports.map(r => `
+    <tr>
+      <td>${r.id}</td>
+      <td>${r.uploaded_at}</td>
+      <td>${r.label || "—"}</td>
+      <td>${r.cpu || "—"}</td>
+      <td>${r.gpu || "—"}</td>
+      <td>${r.npu || "—"}</td>
+      <td>${r.memory || "—"}</td>
+    </tr>
+  `).join("");
+}
+
+workloadSelect.addEventListener("change", () => { populateModelOptions(); loadLeaderboard(); });
+modelSelect.addEventListener("change", loadLeaderboard);
+
+loadCatalog();
+loadReportsTable();
+</script>
+</body>
+</html>

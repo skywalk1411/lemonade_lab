@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# machine-specific paths (contains local absolute paths to tools/models)
+local_config.json
+
+# benchmark output
+reports/*.json
+reports/*.txt
+!reports/.gitkeep
+
+# local leaderboard database
+leaderboard.db
+
+.DS_Store
+Thumbs.db
+node_modules/
+.claude/

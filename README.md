@@ -148,6 +148,15 @@ tests/                  pytest suite for report/runner/models/api
 .github/workflows/ci.yml  runs the test suite on push/PR
 ```
 
+## Known issues
+
+- `qwen3.6-moe-35b-a3b-FLM` (a large vision-capable MoE model) loads successfully
+  on the NPU backend and returns HTTP 200 for chat requests, but with 0 output
+  tokens — its chat template likely doesn't produce a valid text-only completion
+  through flm. Left in the registry since it may be resolved by a future
+  flm/Lemonade release; the tool reports it as a clean failure rather than
+  fabricating a result.
+
 ## Roadmap
 
 - Reranker, TTS (kokoro), and Whisper benchmarking once `lemonade bench` grows

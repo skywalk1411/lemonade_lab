@@ -59,6 +59,19 @@ def test_json_report_records_failed_backend():
     assert report["models"]["Qwen"]["cpu"] == {"error": "timed out"}
 
 
+def test_json_report_omits_settings_when_not_given():
+    results_by_model = {"Qwen": [BenchResult("cpu", "Qwen", workload="llm", gen_tps=1.0)]}
+    report = build_json_report(make_system(), results_by_model)
+    assert "settings" not in report
+
+
+def test_json_report_includes_settings_when_given():
+    results_by_model = {"Qwen": [BenchResult("cpu", "Qwen", workload="llm", gen_tps=1.0)]}
+    settings = {"runs": 3, "warmup": 1, "timeout": 300, "auto_pull": True, "backends": "all"}
+    report = build_json_report(make_system(), results_by_model, settings=settings)
+    assert report["settings"] == settings
+
+
 def test_ascii_report_contains_model_and_box_chars():
     results_by_model = {
         "Qwen": [

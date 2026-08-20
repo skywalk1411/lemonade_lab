@@ -39,6 +39,31 @@ def default_repo_path() -> Path:
     return Path(__file__).resolve().parent.parent.parent / "amdaibenchmarks"
 
 
+def resolve_github_username(configured: str | None = None) -> str | None:
+    """Figures out who's submitting, so the leaderboard can credit them.
+
+    Preference order: an explicitly configured username (local_config.json's
+    github_username, or --github-username), then the account the `gh` CLI is
+    logged into (if installed and authenticated). Returns None rather than
+    guessing from git author name/email, which is frequently not a GitHub
+    handle at all.
+    """
+    if configured:
+        return configured.strip().lstrip("@") or None
+
+    try:
+        result = subprocess.run(
+            ["gh", "api", "user", "--jq", ".login"],
+            capture_output=True, text=True, timeout=10,
+        )
+    except (FileNotFoundError, OSError):
+        return None
+    if result.returncode != 0:
+        return None
+    login = result.stdout.strip()
+    return login or None
+
+
 def _results_view(report: dict) -> dict:
     if report.get("results"):
         return report["results"]
@@ -69,11 +94,19 @@ def _compare_url(remote: str, branch: str) -> str:
     return f"https://github.com/{owner_repo}/compare/main...{branch}?expand=1"
 
 
-def submit_report(json_report: dict, repo_path: Path) -> str:
+def submit_report(json_report: dict, repo_path: Path, github_username: str | None = None) -> str:
     """Validates, commits, and pushes json_report as a new branch in an
     amdaibenchmarks checkout. Returns a human-readable result message;
     raises SubmitError with an actionable explanation on any failure.
+
+    If github_username is given, it's stamped onto the report as
+    'submitted_by' so the leaderboard can credit the contributor. The PR
+    itself is still what GitHub uses to attribute authorship — this field is
+    just what the static site (which has no PR/author info of its own) can
+    read out of the merged JSON.
     """
+    if github_username:
+        json_report = {**json_report, "submitted_by": github_username}
     if not repo_path.exists():
         raise SubmitError(
             f"{repo_path} doesn't exist. Clone it first:\n"

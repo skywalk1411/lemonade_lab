@@ -35,7 +35,7 @@ from bench.hardware import LemonadeServerUnreachable, get_system_info
 from bench.models import default_registry
 from bench.report import build_ascii_report, build_json_report, save_report
 from bench.runners.lemonade import run_bench
-from bench.submit import SubmitError, default_repo_path, submit_report
+from bench.submit import SubmitError, default_repo_path, resolve_github_username, submit_report
 from bench.workloads import WORKLOAD_LABELS, WORKLOAD_UNITS
 
 BANNER = r"""
@@ -212,6 +212,9 @@ def main(argv=None):
                          help="Push this report as a branch to an amdaibenchmarks checkout and print a PR link")
     parser.add_argument("--submit-repo", type=Path, default=None,
                          help="Path to an amdaibenchmarks checkout (default: a sibling 'amdaibenchmarks' directory)")
+    parser.add_argument("--github-username", default=None,
+                         help="Credit this GitHub username on the submitted report (default: local_config.json's "
+                              "github_username, or whoever `gh auth login` is signed in as)")
     parser.add_argument("--no-banner", action="store_true")
     args = parser.parse_args(argv)
 
@@ -252,20 +255,34 @@ def main(argv=None):
 
     print(build_ascii_report(system, results_by_model))
 
-    ascii_path, json_path = save_report(system, results_by_model, args.out_dir)
+    settings = {
+        "runs": args.runs,
+        "warmup": args.warmup,
+        "timeout": args.timeout,
+        "auto_pull": not args.no_auto_pull,
+        "backends": args.backends or "all",
+    }
+
+    ascii_path, json_path = save_report(system, results_by_model, args.out_dir, settings=settings)
     print(f"\nSaved: {ascii_path}")
     print(f"Saved: {json_path}")
 
     if args.upload or args.submit:
-        json_report = build_json_report(system, results_by_model)
+        json_report = build_json_report(system, results_by_model, settings=settings)
 
     if args.upload:
         print(upload_report(json_report, args.upload_url, args.label))
 
     if args.submit:
         repo_path = args.submit_repo or default_repo_path()
+        github_username = resolve_github_username(args.github_username or cfg.github_username)
+        if github_username:
+            print(f"Crediting this submission to GitHub user: {github_username}")
+        else:
+            print("No GitHub username configured or detected (set github_username in local_config.json, "
+                  "pass --github-username, or run `gh auth login`) — submitting without attribution.")
         try:
-            print("\n" + submit_report(json_report, repo_path))
+            print("\n" + submit_report(json_report, repo_path, github_username=github_username))
         except SubmitError as e:
             print(f"\nSubmit failed: {e}")
             return 1

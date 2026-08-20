@@ -19,6 +19,7 @@ class Config:
     lemonade_exe: Path
     lemonade_host: str = "127.0.0.1"
     lemonade_port: int = 1234
+    github_username: str | None = None
 
 
 def _expand(p: str) -> Path:
@@ -34,4 +35,5 @@ def load_config() -> Config:
         lemonade_exe=_expand(data["lemonade_exe"]),
         lemonade_host=data.get("lemonade_host", "127.0.0.1"),
         lemonade_port=int(data.get("lemonade_port", 1234)),
+        github_username=data.get("github_username") or None,
     )

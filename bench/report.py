@@ -77,7 +77,7 @@ def build_ascii_report(system: SystemInfo, results_by_model: dict[str, list[Benc
     return "\n".join(lines)
 
 
-def build_json_report(system: SystemInfo, results_by_model: dict[str, list[BenchResult]]) -> dict:
+def build_json_report(system: SystemInfo, results_by_model: dict[str, list[BenchResult]], settings: dict | None = None) -> dict:
     grouped = _group_by_workload(results_by_model)
     results: dict[str, dict[str, dict]] = {}
 
@@ -103,13 +103,15 @@ def build_json_report(system: SystemInfo, results_by_model: dict[str, list[Bench
         "system": system.as_dict(),
         "results": results,
     }
+    if settings:
+        report["settings"] = settings
     # Back-compat top-level alias matching the original flat schema (LLM results only).
     if "llm" in results:
         report["models"] = results["llm"]
     return report
 
 
-def save_report(system: SystemInfo, results_by_model: dict[str, list[BenchResult]], out_dir) -> tuple[str, str]:
+def save_report(system: SystemInfo, results_by_model: dict[str, list[BenchResult]], out_dir, settings: dict | None = None) -> tuple[str, str]:
     from pathlib import Path
 
     out_dir = Path(out_dir)
@@ -117,7 +119,7 @@ def save_report(system: SystemInfo, results_by_model: dict[str, list[BenchResult
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     ascii_report = build_ascii_report(system, results_by_model)
-    json_report = build_json_report(system, results_by_model)
+    json_report = build_json_report(system, results_by_model, settings=settings)
 
     ascii_path = out_dir / f"report_{stamp}.txt"
     json_path = out_dir / f"report_{stamp}.json"

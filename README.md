@@ -73,11 +73,15 @@ your server is running on (`lemonade status` will tell you):
 {
   "lemonade_exe": "C:\\Users\\you\\AppData\\Local\\lemonade_server\\bin\\lemonade.exe",
   "lemonade_host": "127.0.0.1",
-  "lemonade_port": 1234
+  "lemonade_port": 1234,
+  "github_username": "your-github-handle"
 }
 ```
 
-`local_config.json` is machine-specific and gitignored.
+`local_config.json` is machine-specific and gitignored. `github_username` is
+optional — it's only used to credit `--submit` runs on the amdaibenchmarks
+leaderboard (see below); leave it `null` to have `--submit` fall back to
+whatever `gh auth login` is signed in as, or omit it entirely.
 
 Edit `bench/models.py` (`default_registry`) to add more models — each `ModelSpec`
 groups a display name and workload with one `BackendSource` per backend you want
@@ -102,7 +106,13 @@ Options:
 --no-auto-pull                     # fail instead of downloading missing models
 --upload --label "my-run"          # also push the report to the local leaderboard
 --submit                           # push the report to amdaibenchmarks as a PR-ready branch
+--github-username your-handle      # credit this GitHub user on a --submit (see below)
 ```
+
+Every report's JSON also carries a `settings` object — `runs`, `warmup`,
+`timeout`, `auto_pull`, and which `backends` were requested — recording the
+exact `bench.cli` invocation that produced it, so anyone comparing numbers
+later can see what was actually run.
 
 ### Submitting a result to the community leaderboard
 
@@ -127,6 +137,14 @@ It expects a sibling `../amdaibenchmarks` checkout by default (override with
 It never pushes straight to `main`, even for repo owners — every result is
 reviewable in a PR before it counts, by design. If the working tree isn't
 clean, or there's nothing installed to push with, it stops and tells you why
+
+**Getting credited on the leaderboard:** `--submit` stamps the report with a
+`submitted_by` field so the site can show whose machine a result came from.
+It resolves your GitHub username in this order: `--github-username` on the
+command line, then `github_username` in `local_config.json`, then whoever
+`gh auth login` is currently signed in as (if the [GitHub CLI](https://cli.github.com/)
+is installed). If none of those resolve, the report is still submitted —
+just without attribution.
 rather than guessing.
 
 ### Trying a model without editing the registry

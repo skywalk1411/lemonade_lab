@@ -2,7 +2,7 @@ import subprocess
 
 import pytest
 
-from bench.submit import SubmitError, submit_report, suggest_filename
+from bench.submit import SubmitError, resolve_github_username, submit_report, suggest_filename
 
 SAMPLE_REPORT = {
     "timestamp": "2026-08-19T00:00:00Z",
@@ -66,6 +66,43 @@ def test_submit_report_success(amdaibenchmarks_repo):
         ["git", "show", "main:results"], cwd=amdaibenchmarks_repo, capture_output=True, text=True,
     ).stdout
     assert ".json" not in on_main  # not merged into main by submit_report
+
+
+def _pushed_results_content(repo_path) -> str:
+    """submit_report() leaves the working tree checked out on the pushed
+    submit/* branch, so the one file it added under results/ is just sitting
+    on disk — no need to go through git show (which hits Windows' path-length
+    limit once the long branch-name-derived ref is combined with a path).
+    """
+    files = list((repo_path / "results").glob("*.json"))
+    assert len(files) == 1, f"expected exactly one results/*.json, found {files}"
+    return files[0].read_text(encoding="utf-8")
+
+
+def test_submit_report_stamps_submitted_by(amdaibenchmarks_repo):
+    submit_report(SAMPLE_REPORT, amdaibenchmarks_repo, github_username="octocat")
+    assert '"submitted_by": "octocat"' in _pushed_results_content(amdaibenchmarks_repo)
+
+
+def test_submit_report_without_username_has_no_submitted_by(amdaibenchmarks_repo):
+    submit_report(SAMPLE_REPORT, amdaibenchmarks_repo)
+    assert "submitted_by" not in _pushed_results_content(amdaibenchmarks_repo)
+    assert "submitted_by" not in SAMPLE_REPORT  # submit_report must not mutate its input
+
+
+def test_resolve_github_username_prefers_configured():
+    assert resolve_github_username("octocat") == "octocat"
+
+
+def test_resolve_github_username_strips_at_sign():
+    assert resolve_github_username("@octocat") == "octocat"
+
+
+def test_resolve_github_username_none_when_unconfigured_and_no_gh(monkeypatch):
+    def fake_run(*args, **kwargs):
+        raise FileNotFoundError("gh not found")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert resolve_github_username(None) is None
 
 
 def test_submit_report_missing_repo(tmp_path):

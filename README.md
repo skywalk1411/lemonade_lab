@@ -101,7 +101,33 @@ Options:
 --runs 3 --warmup 1 --timeout 300
 --no-auto-pull                     # fail instead of downloading missing models
 --upload --label "my-run"          # also push the report to the local leaderboard
+--submit                           # push the report to amdaibenchmarks as a PR-ready branch
 ```
+
+### Submitting a result to the community leaderboard
+
+[amdaibenchmarks](https://github.com/skywalk1411/amdaibenchmarks) is the
+public, PR-based leaderboard these reports feed. `--submit` automates the
+mechanical part of contributing to it:
+
+```
+git clone https://github.com/skywalk1411/amdaibenchmarks.git ../amdaibenchmarks
+python -m bench.cli --submit
+```
+
+It expects a sibling `../amdaibenchmarks` checkout by default (override with
+`--submit-repo <path>`), and will:
+
+1. Fast-forward its `main`, then create a `submit/<slug>` branch
+2. Write the report into `results/` with a name matching that repo's convention
+3. Run *that repo's own* `scripts/validate.py` against it — nothing gets
+   pushed if it fails
+4. Commit, push the branch, and print a compare URL to open the PR
+
+It never pushes straight to `main`, even for repo owners — every result is
+reviewable in a PR before it counts, by design. If the working tree isn't
+clean, or there's nothing installed to push with, it stops and tells you why
+rather than guessing.
 
 ### Trying a model without editing the registry
 
@@ -163,6 +189,7 @@ bench/
   hardware.py         reads /api/v1/system-info for CPU/GPU/NPU/RAM
   models.py            model registry: display name -> per-backend Lemonade catalog models
   catalog.py             browses the full Lemonade catalog + install status, for --list-models/--interactive
+  submit.py               pushes a report to an amdaibenchmarks checkout as a PR-ready branch
   workloads.py             workload -> label + unit (tok/s, img/min) shared by report.py and the runner
   report.py             ASCII + JSON report rendering, grouped by workload
   cli.py                 orchestrates everything, optional --upload
@@ -176,7 +203,7 @@ web/
   index.html             static single-report viewer
   leaderboard.html        cross-machine leaderboard UI
   style.css               shared styling
-tests/                  pytest suite for report/runner/models/catalog/api
+tests/                  pytest suite for report/runner/models/catalog/submit/api
 .github/workflows/ci.yml  runs the test suite on push/PR
 ```
 

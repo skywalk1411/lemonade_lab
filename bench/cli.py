@@ -10,6 +10,7 @@ Usage:
     python -m bench.cli --upload               # also push the report to the local leaderboard server
     python -m bench.cli --list-models [FILTER] # browse what Lemonade Server can run
     python -m bench.cli --interactive          # pick a model from the catalog and run it, no code edits
+    python -m bench.cli --submit                # push the report to amdaibenchmarks as a PR-ready branch
 """
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ import time
 import urllib.error
 import urllib.request
 from collections import defaultdict
+from pathlib import Path
 
 # Windows consoles default to cp1252, which can't print the box-drawing/star
 # characters in the ASCII report.
@@ -33,6 +35,7 @@ from bench.hardware import LemonadeServerUnreachable, get_system_info
 from bench.models import default_registry
 from bench.report import build_ascii_report, build_json_report, save_report
 from bench.runners.lemonade import run_bench
+from bench.submit import SubmitError, default_repo_path, submit_report
 from bench.workloads import WORKLOAD_LABELS, WORKLOAD_UNITS
 
 BANNER = r"""
@@ -205,6 +208,10 @@ def main(argv=None):
     parser.add_argument("--upload", action="store_true", help="POST the finished report to a local leaderboard server")
     parser.add_argument("--upload-url", default="http://127.0.0.1:8787", help="Leaderboard server base URL")
     parser.add_argument("--label", help="Optional label to attach to this run when uploading")
+    parser.add_argument("--submit", action="store_true",
+                         help="Push this report as a branch to an amdaibenchmarks checkout and print a PR link")
+    parser.add_argument("--submit-repo", type=Path, default=None,
+                         help="Path to an amdaibenchmarks checkout (default: a sibling 'amdaibenchmarks' directory)")
     parser.add_argument("--no-banner", action="store_true")
     args = parser.parse_args(argv)
 
@@ -249,9 +256,19 @@ def main(argv=None):
     print(f"\nSaved: {ascii_path}")
     print(f"Saved: {json_path}")
 
-    if args.upload:
+    if args.upload or args.submit:
         json_report = build_json_report(system, results_by_model)
+
+    if args.upload:
         print(upload_report(json_report, args.upload_url, args.label))
+
+    if args.submit:
+        repo_path = args.submit_repo or default_repo_path()
+        try:
+            print("\n" + submit_report(json_report, repo_path))
+        except SubmitError as e:
+            print(f"\nSubmit failed: {e}")
+            return 1
 
     return 0
 

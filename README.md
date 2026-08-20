@@ -103,6 +103,28 @@ Options:
 --upload --label "my-run"          # also push the report to the local leaderboard
 ```
 
+### Trying a model without editing the registry
+
+`bench/models.py` (`default_registry`) is the *repeatable* set of models — the
+one CI or a scripted run would use. To try something else on the fly, you
+don't need to touch that file:
+
+```
+python -m bench.cli --list-models              # what's downloaded and bench-able right now
+python -m bench.cli --list-models qwen          # search Lemonade's full catalog (~230 models)
+python -m bench.cli --interactive               # pick a catalog model and run it
+```
+
+`--interactive` asks what to search for (or just press Enter to browse
+downloaded models), lists matches with their workload and download status,
+and — once you pick one — auto-detects which of its backends (cpu/vulkan/rocm/npu/hybrid)
+are actually installed on this machine and benchmarks it across all of them.
+If the model isn't downloaded yet, it asks before pulling it.
+
+Reranker, TTS, and Whisper models show up in `--list-models` too (Lemonade
+Server can download and serve them), just marked as not bench-able yet — see
+Known issues below.
+
 This prints the ASCII report to the console and writes both a `.txt` and `.json`
 report to `reports/`.
 
@@ -140,7 +162,8 @@ bench/
   config.py          lemonade.exe path + host/port
   hardware.py         reads /api/v1/system-info for CPU/GPU/NPU/RAM
   models.py            model registry: display name -> per-backend Lemonade catalog models
-  workloads.py          workload -> label + unit (tok/s, img/min) shared by report.py and the runner
+  catalog.py             browses the full Lemonade catalog + install status, for --list-models/--interactive
+  workloads.py             workload -> label + unit (tok/s, img/min) shared by report.py and the runner
   report.py             ASCII + JSON report rendering, grouped by workload
   cli.py                 orchestrates everything, optional --upload
   runners/
@@ -153,7 +176,7 @@ web/
   index.html             static single-report viewer
   leaderboard.html        cross-machine leaderboard UI
   style.css               shared styling
-tests/                  pytest suite for report/runner/models/api
+tests/                  pytest suite for report/runner/models/catalog/api
 .github/workflows/ci.yml  runs the test suite on push/PR
 ```
 

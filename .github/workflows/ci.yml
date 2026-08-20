@@ -22,4 +22,5 @@ jobs:
         run: python -m pytest tests/ -v
 
       - name: Byte-compile everything (catches syntax errors)
+        shell: bash
         run: python -m py_compile bench/*.py bench/runners/*.py api/*.py
